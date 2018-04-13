@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <limits>
 #include <ios>
+#include <vector>
 #include "LandingQueue.h"
 #include "ServiceQueue.h"
 #include "DepartureQueue.h"
@@ -18,11 +19,13 @@ class Simulator
 private:
 	int total_time;  // total time to run simulation
 	int clock;       // current time
+	int num_of_gates;
 
 	// landing queue --> service queue --> departure queue
 	LandingQueue *landing_queue;
-	ServiceQueue *service_queue;
+	std::vector < ServiceQueue* > gates;
 	DepartureQueue *departure_queue;
+
 
 	// Remember me!
 	int read_int(const std::string &prompt, int low, int high)
@@ -55,7 +58,6 @@ public:
 	
 	Simulator() {
 		landing_queue = new LandingQueue();
-		service_queue = new ServiceQueue();
 		departure_queue = new DepartureQueue();
 	}
 
@@ -67,7 +69,8 @@ public:
 
 		int rate = read_int("Please enter the plane arrival rate (planes/hour): ", 1, 59);
 		double arrival_rate = rate/60.0;
-
+		
+		num_of_gates = read_int("please enter the number of gates: ", 0, INT_MAX);
 		int min_service = read_int("Please enter the minimum service time (mins): ", 0, INT_MAX);
 		int max_service = read_int("Please enter the maximum service time (mins): ", 0, INT_MAX);
 		int departure_time = read_int("Please enter the departure time (mins): ", 1, INT_MAX);
@@ -75,14 +78,20 @@ public:
 		total_time = read_int("Please enter the simulation time (hours): ", 1, INT_MAX);
 		total_time *= 60;
 
+		for (int i = 0; i < num_of_gates; i++)
+		{	gates.push_back(new ServiceQueue()); }
+
 		// set the arrival_rate for the landing queue
 		landing_queue->set_arrival_rate(arrival_rate);
 
-		// set the service times for the service queue 
-		service_queue->set_service_times(min_service, max_service);
+		for (int i = 0; i < num_of_gates; i++) {
+			// set the service times for the service queue 
+			gates[i]->set_service_times(min_service, max_service);
+			gates[i]->set_number_of_gates(num_of_gates);
+			gates[i]->set_landing_queue(landing_queue);
+			gates[i]->set_departure_queue(departure_queue);
+		}
 		// pass references to the landing and departure queue to the service queue
-		service_queue->set_landing_queue(landing_queue);
-		service_queue->set_departure_queue(departure_queue);
 		
 		// set the departure time for the departure queue
 		departure_queue->set_departure_time(departure_time);
@@ -95,7 +104,10 @@ public:
 		{
 			// for each time interval ...
 			landing_queue->update(clock);
-			service_queue->update(clock);
+			for (int i = 0; i < num_of_gates; i++)
+			{
+				gates[i]->update(clock);
+			}
 			departure_queue->update(clock);
 		}
 	}
